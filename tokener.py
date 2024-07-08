@@ -3,6 +3,7 @@ TT_STRING = "string"
 TT_INT = "int"
 TT_PARENL = "parenl"
 TT_PARENR = "parenr"
+TT_NLINE = "nextline"
 
 class Token:
     def __init__(self, type_, value:any) -> None:
@@ -12,12 +13,12 @@ class Token:
     def __repr__(self) -> str:
         return f"{self.type}:{self.value}"
 
-class Parser:
-    def __init__(self, line:str, lineNum:int) -> None:
+class Lexer:
+    def __init__(self, line:str) -> None:
         self.pos:int = -1
         self.line:str = line
         self.char:str|None = ''
-        self.lineNum:int = lineNum
+        self.lineNum:int = 1
         self.next()
     
     def next(self) -> None:
@@ -27,14 +28,17 @@ class Parser:
         else:
             self.char = None
     
-    def parse(self) -> list[Token]:
+    def lexe(self) -> list[Token]:
         tokens:list[Token] = []
         while self.char != None:
-            if self.char in ' \n':
+            if self.char in ' ':
                 self.next()
                 continue
-            if self.char in ';':
-                break
+            if self.char in '\n;':
+                tokens.append(Token(TT_NLINE, None))
+                self.lineNum += 1
+                self.next()
+                continue
             
             if self.char in '0123456789':
                 tokens.append(self.getNum())
@@ -58,6 +62,7 @@ class Parser:
                 continue
 
             raise ValueError(f"Parser: bad char. ({self.lineNum}:{self.pos})")
+        tokens.append(None)
         return tokens
     
     def getNum(self) -> Token:

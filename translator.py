@@ -13,6 +13,11 @@ class Translator:
         self.includes = ''
         self.start = '_start:\n'
         self.curconstnum:int = 1
+        self.curscope = {
+            "func":[],
+            "const":[],
+            "var":[],
+        }
 
     def next(self):
         if len(self.tokens) > self.pos+1:
@@ -35,24 +40,52 @@ class Translator:
         include = ''
         if self.curtoken.type == TT_STRING:
             self.translateString()
-        elif self.curtoken.type == TT_INT:
+            return
+        if self.curtoken.type == TT_INT:
             self.start += f"mov rax, {self.curtoken.value}\npush rax\n"
-        elif self.curtoken.type == TT_LABEL:
+            return
+        if self.curtoken.type == TT_LABEL:
             if self.curtoken.value == "#include":
-                self.next()
-                if self.curtoken.type != TT_STRING:
-                    raise ValueError("Translator: bad #include.")
-                if not os.path.isfile(self.curtoken.value):
-                    raise ValueError("Translator: #include file unreacheble or does not exists.")
-                with open(self.curtoken.value, 'r') as ofile:
-                    include = ofile.read()
-                include += '\n'
-                include = '\n'+include
-                self.includes += include
+                self.include()
                 return
             
             if self.tokens[self.pos+1].type == TT_PARENL:
                 self.translateFunccall()
+                return
+        if self.curtoken.type == TT_NLINE:
+            return
+        raise ValueError("Translator: bad token or conbination of tokens.")
+    
+    def include(self):
+        self.next()
+        if self.curtoken.type != TT_STRING:
+            raise ValueError("Translator: bad #include.")
+        
+        if not os.path.isfile(self.curtoken.value):
+            raise ValueError("Translator: #include file unreacheble or does not exists.")
+        
+        with open(self.curtoken.value, 'r') as ofile:
+            include:str = ofile.read()
+
+        rules:str = include.partition('\n')[0]
+        rulesarray:list = rules.split()
+
+        for i in range(len(rulesarray)):
+            if rulesarray[i] == ';':
+                continue
+
+            if rulesarray[i] == 'func':
+                self.curscope["func"].append((rulesarray[i+1], int(rulesarray[i+2])))
+                continue
+            if rulesarray[i] == 'const':
+                self.curscope["const"].append(rulesarray[i+1])
+                continue
+        
+        print(self.curscope)
+
+        include += '\n'
+        include = '\n'+include
+        self.includes += include
         return
 
     def translateFunccall(self):
