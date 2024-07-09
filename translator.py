@@ -56,6 +56,13 @@ class Translator:
             return
         raise ValueError("Translator: bad token or conbination of tokens.")
     
+    def expectNLINE(self):
+        self.next()
+        if self.curtoken == None or self.curtoken.type == TT_NLINE:
+            return
+        else:
+            raise ValueError("Translator: unexpected token after command.")
+    
     def include(self):
         self.next()
         if self.curtoken.type != TT_STRING:
@@ -80,22 +87,35 @@ class Translator:
             if rulesarray[i] == 'const':
                 self.curscope["const"].append(rulesarray[i+1])
                 continue
-        
-        print(self.curscope)
 
         include += '\n'
         include = '\n'+include
         self.includes += include
+        self.expectNLINE()
         return
 
     def translateFunccall(self):
         name = self.curtoken.value
+        declared = False
+        argc = 0
+        for func in self.curscope["func"]:
+            if func[0] == name:
+                declared = True
+                argc = func[1]
+                break
+        if not declared:
+            raise ValueError("Translator: function not declared.")
         self.next()
         self.next()
+        count = 0
         while self.curtoken.type != TT_PARENR:
             self.translateToken()
+            count += 1
             self.next()
+        if count != argc:
+            raise ValueError(f"Translator: function have bad arguments, expected {argc} while resived exactly {count}.")
         self.start += f'call {name}\n'
+        self.expectNLINE()
 
     def translateString(self):
         strarray = []
